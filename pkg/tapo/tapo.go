@@ -32,6 +32,7 @@ type Tapo struct {
 	key          []byte
 	iv           []byte
 	client       *http.Client
+	terminalUUID string
 }
 
 func NewTapo(ip string, email string, password string) (*Tapo, error) {
@@ -98,6 +99,19 @@ func (d *Tapo) decrypt(in []byte) map[string]interface{} {
 		log.Fatalln(err)
 	}
 	return v
+}
+
+func (d *Tapo) ensureTerminalUUID() (string, error) {
+	if d.terminalUUID != "" {
+		return d.terminalUUID, nil
+	}
+
+	i, err := d.DeviceInfo()
+	if err != nil {
+		return "", err
+	}
+	d.terminalUUID = i["result"].(map[string]interface{})["mac"].(string)
+	return d.terminalUUID, nil
 }
 
 func (d *Tapo) Handshake() error {
@@ -211,6 +225,10 @@ func (d *Tapo) Login() error {
 }
 
 func (d *Tapo) GetEnergyUsage() (map[string]interface{}, error) {
+	terminalUUID, err := d.ensureTerminalUUID()
+	if err != nil {
+		return nil, err
+	}
 	return d.Request(
 		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
 		"POST",
@@ -220,6 +238,7 @@ func (d *Tapo) GetEnergyUsage() (map[string]interface{}, error) {
 				"request": d.encrypt(map[string]interface{}{
 					"method":          "get_energy_usage",
 					"requestTimeMils": time.Now().Unix(),
+					"terminalUUID":    terminalUUID,
 				}),
 			},
 		},
@@ -245,6 +264,10 @@ func (d *Tapo) DeviceInfo() (map[string]interface{}, error) {
 }
 
 func (d *Tapo) TurnOn() (map[string]interface{}, error) {
+	terminalUUID, err := d.ensureTerminalUUID()
+	if err != nil {
+		return nil, err
+	}
 	return d.Request(
 		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
 		"POST",
@@ -258,6 +281,7 @@ func (d *Tapo) TurnOn() (map[string]interface{}, error) {
 							"device_on": true,
 						},
 						"requestTimeMils": 0,
+						"terminalUUID":    terminalUUID,
 					},
 				),
 			},
@@ -266,6 +290,10 @@ func (d *Tapo) TurnOn() (map[string]interface{}, error) {
 }
 
 func (d *Tapo) TurnOff() (map[string]interface{}, error) {
+	terminalUUID, err := d.ensureTerminalUUID()
+	if err != nil {
+		return nil, err
+	}
 	return d.Request(
 		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
 		"POST",
@@ -279,6 +307,7 @@ func (d *Tapo) TurnOff() (map[string]interface{}, error) {
 							"device_on": false,
 						},
 						"requestTimeMils": 0,
+						"terminalUUID":    terminalUUID,
 					},
 				),
 			},
