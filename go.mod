@@ -1,3 +1,3 @@
-module github.com/richardjennings/tapo
+module github.com/hfoxy/tapo
 
 go 1.19
