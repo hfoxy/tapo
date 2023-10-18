@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/richardjennings/tapo/pkg/tapo"
+	"github.com/hfoxy/tapo/pkg/tapo"
 	"log"
 	"os"
 )
