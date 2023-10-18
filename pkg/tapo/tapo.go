@@ -168,6 +168,21 @@ func (d *Tapo) Handshake() error {
 	return nil
 }
 
+func (d *Tapo) RequestPath(path string, method string, body map[string]interface{}) (map[string]interface{}, error) {
+	u, err := url.Parse(fmt.Sprintf("http://%s%s", d.ip, path))
+	if err != nil {
+		return nil, err
+	}
+
+	if d.token != "" {
+		q := u.Query()
+		q.Set("token", d.token)
+		u.RawQuery = q.Encode()
+	}
+
+	return d.Request(u.String(), method, body)
+}
+
 func (d *Tapo) Request(url string, method string, body map[string]interface{}) (map[string]interface{}, error) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
