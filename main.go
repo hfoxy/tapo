@@ -31,9 +31,11 @@ func main() {
 	case "on":
 		r, err = t.TurnOn()
 	case "energy-usage":
-		r, err = t.GetEnergyUsage()
+		r, err = t.EnergyUsage()
 	case "device-info":
 		r, err = t.DeviceInfo()
+	case "device-running-info":
+		r, err = t.DeviceRunningInfo()
 	default:
 		log.Fatalf("invalid argument: '%s'. expected one of [off, on, energy-usage, device-info]", command)
 	}

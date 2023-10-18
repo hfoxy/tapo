@@ -82,7 +82,7 @@ func (d *Tapo) encrypt(p map[string]interface{}) string {
 
 }
 
-func (d *Tapo) decrypt(in []byte) map[string]interface{} {
+func (d *Tapo) decrypt(in []byte) []byte {
 	block, err := aes.NewCipher(d.key)
 	if err != nil {
 		log.Fatalln(err)
@@ -93,12 +93,7 @@ func (d *Tapo) decrypt(in []byte) map[string]interface{} {
 	length := len(out)
 	unpadding := int(out[length-1])
 	out = out[:(length - unpadding)]
-
-	var v map[string]interface{}
-	if err := json.Unmarshal(out, &v); err != nil {
-		log.Fatalln(err)
-	}
-	return v
+	return out
 }
 
 func (d *Tapo) ensureTerminalUUID() (string, error) {
@@ -183,7 +178,36 @@ func (d *Tapo) RequestPath(path string, method string, body map[string]interface
 	return d.Request(u.String(), method, body)
 }
 
+func (d *Tapo) RequestResult(url string, method string, body map[string]interface{}, result any) error {
+	b, err := d.RequestRaw(url, method, body)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(b, result)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *Tapo) Request(url string, method string, body map[string]interface{}) (map[string]interface{}, error) {
+	b, err := d.RequestRaw(url, method, body)
+	if err != nil {
+		return nil, err
+	}
+
+	var v map[string]interface{}
+	err = json.Unmarshal(b, &v)
+	if err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+func (d *Tapo) RequestRaw(url string, method string, body map[string]interface{}) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	if err := enc.Encode(body); err != nil {
@@ -207,12 +231,14 @@ func (d *Tapo) Request(url string, method string, body map[string]interface{}) (
 	if err := json.NewDecoder(res.Body).Decode(&v); err != nil {
 		return nil, err
 	}
+
 	encRes, err := base64.StdEncoding.DecodeString(v["result"].(map[string]interface{})["response"].(string))
 	if err != nil {
 		return nil, err
 	}
 
-	return d.decrypt(encRes), nil
+	b := d.decrypt(encRes)
+	return b, nil
 }
 
 func (d *Tapo) Login() error {
@@ -239,7 +265,7 @@ func (d *Tapo) Login() error {
 	return nil
 }
 
-func (d *Tapo) GetEnergyUsage() (map[string]interface{}, error) {
+func (d *Tapo) EnergyUsage() (map[string]interface{}, error) {
 	terminalUUID, err := d.ensureTerminalUUID()
 	if err != nil {
 		return nil, err
@@ -260,6 +286,34 @@ func (d *Tapo) GetEnergyUsage() (map[string]interface{}, error) {
 	)
 }
 
+var emptyEnergyUsage = EnergyUsage{}
+
+func (d *Tapo) GetEnergyUsage() (EnergyUsage, error) {
+	result := EnergyUsage{}
+	terminalUUID, err := d.ensureTerminalUUID()
+	if err != nil {
+		return emptyEnergyUsage, err
+	}
+
+	err = d.RequestResult(
+		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
+		"POST",
+		map[string]interface{}{
+			"method": "securePassthrough",
+			"params": map[string]interface{}{
+				"request": d.encrypt(map[string]interface{}{
+					"method":          "get_energy_usage",
+					"requestTimeMils": time.Now().Unix(),
+					"terminalUUID":    terminalUUID,
+				}),
+			},
+		},
+		&result,
+	)
+
+	return result, err
+}
+
 func (d *Tapo) DeviceInfo() (map[string]interface{}, error) {
 	return d.Request(
 		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
@@ -276,6 +330,72 @@ func (d *Tapo) DeviceInfo() (map[string]interface{}, error) {
 			},
 		},
 	)
+}
+
+var emptyDeviceInfo = DeviceInfo{}
+
+func (d *Tapo) GetDeviceInfo() (DeviceInfo, error) {
+	result := DeviceInfo{}
+	err := d.RequestResult(
+		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
+		"POST",
+		map[string]interface{}{
+			"method": "securePassthrough",
+			"params": map[string]interface{}{
+				"request": d.encrypt(
+					map[string]interface{}{
+						"method":          "get_device_info",
+						"requestTimeMils": 0,
+					},
+				),
+			},
+		},
+		&result,
+	)
+
+	return emptyDeviceInfo, err
+}
+
+func (d *Tapo) DeviceRunningInfo() (map[string]interface{}, error) {
+	return d.Request(
+		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
+		"POST",
+		map[string]interface{}{
+			"method": "securePassthrough",
+			"params": map[string]interface{}{
+				"request": d.encrypt(
+					map[string]interface{}{
+						"method":          "get_device_running_info",
+						"requestTimeMils": 0,
+					},
+				),
+			},
+		},
+	)
+}
+
+var emptyDeviceRunningInfo = DeviceRunningInfo{}
+
+func (d *Tapo) GetDeviceRunningInfo() (DeviceRunningInfo, error) {
+	result := DeviceRunningInfo{}
+	err := d.RequestResult(
+		fmt.Sprintf("http://%s/app?token=%s", d.ip, d.token),
+		"POST",
+		map[string]interface{}{
+			"method": "securePassthrough",
+			"params": map[string]interface{}{
+				"request": d.encrypt(
+					map[string]interface{}{
+						"method":          "get_device_running_info",
+						"requestTimeMils": 0,
+					},
+				),
+			},
+		},
+		&result,
+	)
+
+	return emptyDeviceRunningInfo, err
 }
 
 func (d *Tapo) TurnOn() (map[string]interface{}, error) {
