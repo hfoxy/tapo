@@ -353,7 +353,7 @@ func (d *Tapo) GetDeviceInfo() (DeviceInfo, error) {
 		&result,
 	)
 
-	return emptyDeviceInfo, err
+	return result, err
 }
 
 func (d *Tapo) DeviceRunningInfo() (map[string]interface{}, error) {
@@ -395,7 +395,7 @@ func (d *Tapo) GetDeviceRunningInfo() (DeviceRunningInfo, error) {
 		&result,
 	)
 
-	return emptyDeviceRunningInfo, err
+	return result, err
 }
 
 func (d *Tapo) TurnOn() (map[string]interface{}, error) {
